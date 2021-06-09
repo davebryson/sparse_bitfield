@@ -1,5 +1,5 @@
 %%% @doc
-%%% Space efficient way to track of location of bytes
+%%% Space efficient way to track the location of bytes
 %%% @end
 -module(sparse_bitfield).
 
