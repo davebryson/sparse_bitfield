@@ -14,9 +14,11 @@
 
 %% Make big enough to handle larger page sizes
 -define(IDX_SIZE, 16).
-%% State: {MemoryPager, ByteLength}
+
+-type state() :: {MemoryPager :: module(), ByteLength :: pos_integer()}.
 
 %% @doc create an instance
+-spec new() -> State :: state().
 new() ->
     {
         memory_pager:new(),
@@ -24,6 +26,8 @@ new() ->
     }.
 
 %% @doc Set the bit at the given index to either true | false
+-spec set_bit(Index :: pos_integer(), Value :: boolean(), State :: state()) ->
+    {ok, Changed :: boolean(), State :: state()} | erlang:error({badarg, term()}).
 set_bit(Index, true, State) ->
     set(Index, 1, State);
 set_bit(Index, false, State) ->
@@ -32,6 +36,7 @@ set_bit(_, Arg, _) ->
     erlang:error({badarg, Arg}).
 
 %% @doc Check the value of the bit at the given index
+-spec get_bit(Index :: pos_integer(), State :: state()) -> boolean().
 get_bit(Index, {Pager, _}) ->
     PageNum = memory_pager:pagenum_for_byte_index(Index, Pager),
     PageSize = memory_pager:pagesize_in_bytes(Pager),
@@ -48,10 +53,12 @@ get_bit(Index, {Pager, _}) ->
     end.
 
 %% @doc Return the number of bytes set
+-spec byte_length(State :: state()) -> pos_integer().
 byte_length({_, ByteLength}) ->
     ByteLength.
 
 %% @doc Return the number of bits toggled
+-spec bit_length(State :: state()) -> pos_integer().
 bit_length({_, ByteLength}) ->
     ByteLength * 8.
 
@@ -64,17 +71,17 @@ set(Index, Value, {Pager, ByteLength}) ->
     case memory_pager:get(PageNum, Pager) of
         {ok, {_, Buffer}, _} ->
             NewBuff = set_buffer_bit(BytePageIndex, Value, Buffer),
-            Pager1 = memory_pager:set(PageNum, NewBuff, Pager);
+            {ok, Changed, Pager1} = memory_pager:set(PageNum, NewBuff, Pager);
         {none, _} ->
             Buffer = <<0:PageSize/unit:8>>,
             NewBuff = set_buffer_bit(BytePageIndex, Value, Buffer),
-            Pager1 = memory_pager:set(PageNum, NewBuff, Pager)
+            {ok, Changed, Pager1} = memory_pager:set(PageNum, NewBuff, Pager)
     end,
     %% Set the byte length
     ByteIndex = calculate_byte_index(Index),
     case ByteIndex >= ByteLength of
-        true -> {ok, {Pager1, ByteIndex + 1}};
-        _ -> {ok, {Pager1, ByteLength}}
+        true -> {ok, Changed, {Pager1, ByteIndex + 1}};
+        _ -> {ok, Changed, {Pager1, ByteLength}}
     end.
 
 %% @private Get the bit at the given index

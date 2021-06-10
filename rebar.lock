@@ -1,4 +1,4 @@
 [{<<"memory_pager">>,
   {git,"https://github.com/davebryson/memory_pager.git",
-       {ref,"a2a4b5b5d290f2204f4207f9470d9ac6d053e3e9"}},
+       {ref,"e28b8b53763312ebbdea20f2f9e8829068255874"}},
   0}].
