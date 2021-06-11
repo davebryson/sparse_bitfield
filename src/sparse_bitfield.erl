@@ -1,5 +1,5 @@
 %%% @doc
-%%% Space efficient way to track the location of bytes
+%%% Spare Bitfield:  Flip a bit at random locations in a random sized binary
 %%% @end
 -module(sparse_bitfield).
 
@@ -40,13 +40,13 @@ set_bit(_, Arg, _) ->
 get_bit(Index, {Pager, _}) ->
     PageNum = memory_pager:pagenum_for_byte_index(Index, Pager),
     PageSize = memory_pager:pagesize_in_bytes(Pager),
-    ByteIndex = calculate_index_in_page(Index, PageSize),
+    BytePageIndex = calculate_index_in_page(Index, PageSize),
 
     case memory_pager:get(PageNum, Pager) of
         {none, _} ->
             false;
         {ok, {_, Buffer}, _} ->
-            case get_buffer_bit(ByteIndex, Buffer) of
+            case get_buffer_bit_value(BytePageIndex, Buffer) of
                 1 -> true;
                 0 -> false
             end
@@ -62,40 +62,45 @@ byte_length({_, ByteLength}) ->
 bit_length({_, ByteLength}) ->
     ByteLength * 8.
 
-%% @private
-%% Return {ok, changed, state}
-%% Look up the bit for the given index
-%%   If the bit == value do nothing and return {ok, false, State}
-%%   else set the bit to the new value and return {ok, true, State}
+%% @private do the set
 set(Index, Value, {Pager, ByteLength}) ->
-    %% Get page number
     PageNum = memory_pager:pagenum_for_byte_index(Index, Pager),
     PageSize = memory_pager:pagesize_in_bytes(Pager),
     BytePageIndex = calculate_index_in_page(Index, PageSize),
-    case memory_pager:get(PageNum, Pager) of
-        {ok, {_, Buffer}, _} ->
-            NewBuff = set_buffer_bit(BytePageIndex, Value, Buffer),
-            {ok, Changed, Pager1} = memory_pager:set(PageNum, NewBuff, Pager);
-        {none, _} ->
-            Buffer = <<0:PageSize/unit:8>>,
-            NewBuff = set_buffer_bit(BytePageIndex, Value, Buffer),
-            {ok, Changed, Pager1} = memory_pager:set(PageNum, NewBuff, Pager)
-    end,
+    {ChangedFlag, Pager1} =
+        case memory_pager:get(PageNum, Pager) of
+            {ok, {_, Buffer}, _} ->
+                %% check to see if the value is already set
+                case Value =:= get_buffer_bit_value(BytePageIndex, Buffer) of
+                    true ->
+                        %% Hasn't changed
+                        {false, Pager};
+                    false ->
+                        NewBuff = set_buffer_bit_value(BytePageIndex, Value, Buffer),
+                        {ok, S1} = memory_pager:set(PageNum, NewBuff, Pager),
+                        {true, S1}
+                end;
+            {none, _} ->
+                %% New buffer/page  we start with a zero-ed buffer
+                NewBuff = set_buffer_bit_value(BytePageIndex, Value, <<0:PageSize/unit:8>>),
+                {ok, S1} = memory_pager:set(PageNum, NewBuff, Pager),
+                {true, S1}
+        end,
     %% Set the byte length
     ByteIndex = calculate_byte_index(Index),
     case ByteIndex >= ByteLength of
-        true -> {ok, Changed, {Pager1, ByteIndex + 1}};
-        _ -> {ok, Changed, {Pager1, ByteLength}}
+        true -> {ok, ChangedFlag, {Pager1, ByteIndex + 1}};
+        _ -> {ok, ChangedFlag, {Pager1, ByteLength}}
     end.
 
 %% @private Get the bit at the given index
-get_buffer_bit(Index, Buffer) ->
+get_buffer_bit_value(Index, Buffer) ->
     %% Add an index to offset from the MSB.  Then grab the bit we want.
     <<N:?IDX_SIZE, _:N/bits, X:1, _/bits>> = list_to_binary([<<Index:?IDX_SIZE>>, Buffer]),
     X.
 
 %% @private Set the bit at the given index
-set_buffer_bit(Index, Value, Buffer) ->
+set_buffer_bit_value(Index, Value, Buffer) ->
     <<N:?IDX_SIZE, L:N/bits, _:1, R/bits>> = list_to_binary([<<Index:?IDX_SIZE>>, Buffer]),
     <<L/bits, Value:1, R/bits>>.
 

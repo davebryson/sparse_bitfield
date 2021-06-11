@@ -1,5 +1,5 @@
 {application, sparse_bitfield, [
-    {description, "Space Efficient way to track the location of bytes"},
+    {description, "Flip a bit at random locations in a random sized binary"},
     {vsn, "0.1.0"},
     {registered, []},
     {applications, [

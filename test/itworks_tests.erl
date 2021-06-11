@@ -2,11 +2,36 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
-get_set_basic_test() ->
+all_test() ->
+    [
+        test_changing_flag(),
+        test_get_set_basic(),
+        test_more_sets(),
+        test_byte_length()
+    ].
+
+test_changing_flag() ->
+    Index = 19,
+    S1 = sparse_bitfield:new(),
+    false = sparse_bitfield:get_bit(Index, S1),
+    %% Set to true
+    {ok, true, S2} = sparse_bitfield:set_bit(Index, true, S1),
+    %% Try again but really not changed
+    {ok, false, S2} = sparse_bitfield:set_bit(Index, true, S2),
+    %% Still true
+    true = sparse_bitfield:get_bit(Index, S2),
+    %% Now flip to false and should change
+    {ok, true, S3} = sparse_bitfield:set_bit(Index, false, S2),
+    %% Check
+    false = sparse_bitfield:get_bit(Index, S3),
+    ok.
+
+test_get_set_basic() ->
     S1 = sparse_bitfield:new(),
     false = sparse_bitfield:get_bit(0, S1),
 
     {ok, true, S2} = sparse_bitfield:set_bit(1, true, S1),
+
     false = sparse_bitfield:get_bit(0, S2),
     true = sparse_bitfield:get_bit(1, S2),
     false = sparse_bitfield:get_bit(0, S2),
@@ -16,7 +41,7 @@ get_set_basic_test() ->
     false = sparse_bitfield:get_bit(16, S2),
     false = sparse_bitfield:get_bit(1000, S2),
 
-    %% How does it handle changes
+    true = sparse_bitfield:get_bit(1, S2),
     {ok, false, S2} = sparse_bitfield:set_bit(1, true, S2),
 
     1 = sparse_bitfield:byte_length(S2),
@@ -30,7 +55,7 @@ get_set_basic_test() ->
     8 = sparse_bitfield:bit_length(S3),
     ok.
 
-more_sets_test() ->
+test_more_sets() ->
     S0 = sparse_bitfield:new(),
     {ok, _, S1} = sparse_bitfield:set_bit(1, true, S0),
     {ok, _, S2} = sparse_bitfield:set_bit(1024, true, S1),
@@ -49,20 +74,7 @@ more_sets_test() ->
     376 * 8 = sparse_bitfield:bit_length(S4),
     ok.
 
-what_test() ->
-    S1 = sparse_bitfield:new(),
-    {ok, _, S2} = sparse_bitfield:set_bit(4, true, S1),
-    false = sparse_bitfield:get_bit(0, S2),
-    false = sparse_bitfield:get_bit(1, S2),
-    false = sparse_bitfield:get_bit(2, S2),
-    false = sparse_bitfield:get_bit(3, S2),
-    true = sparse_bitfield:get_bit(4, S2),
-    false = sparse_bitfield:get_bit(5, S2),
-    false = sparse_bitfield:get_bit(6, S2),
-    false = sparse_bitfield:get_bit(7, S2),
-    ok.
-
-range_test() ->
+test_byte_length() ->
     State = batch_set(7),
     1 = sparse_bitfield:byte_length(State),
 
