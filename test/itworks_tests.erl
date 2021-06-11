@@ -16,6 +16,9 @@ get_set_basic_test() ->
     false = sparse_bitfield:get_bit(16, S2),
     false = sparse_bitfield:get_bit(1000, S2),
 
+    %% How does it handle changes
+    {ok, false, S2} = sparse_bitfield:set_bit(1, true, S2),
+
     1 = sparse_bitfield:byte_length(S2),
     8 = sparse_bitfield:bit_length(S2),
 

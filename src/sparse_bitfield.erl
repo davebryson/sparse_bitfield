@@ -63,6 +63,10 @@ bit_length({_, ByteLength}) ->
     ByteLength * 8.
 
 %% @private
+%% Return {ok, changed, state}
+%% Look up the bit for the given index
+%%   If the bit == value do nothing and return {ok, false, State}
+%%   else set the bit to the new value and return {ok, true, State}
 set(Index, Value, {Pager, ByteLength}) ->
     %% Get page number
     PageNum = memory_pager:pagenum_for_byte_index(Index, Pager),
